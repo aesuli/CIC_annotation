@@ -1,15 +1,17 @@
-import datetime
-from collections import Counter
-from itertools import chain
+import pickle
+import sys
 
-import pycrfsuite
-from sklearn.metrics import classification_report
-from sklearn.preprocessing import LabelBinarizer
+from sklearn_crfsuite.metrics import flat_classification_report
 
-from train_crfsuite import sent2features, sent2labels, bio_classification_report
+from train_crfsuite import sent2features, sent2labels
 
 
 def main():
+    model_name = sys.argv[1]
+
+    with open(model_name, mode='rb') as input_file:
+        model = pickle.load(input_file)
+
     with open('test_data.txt', mode='rt', encoding='utf-8') as input_file:
         test_sents = []
         sent = []
@@ -25,20 +27,15 @@ def main():
         X_test = [sent2features(s) for s in test_sents]
         y_test = [sent2labels(s) for s in test_sents]
 
-    model_name = f'ner-model_2024-08-26.crfsuite'
+    y_pred = model.predict(X_test)
 
-    tagger = pycrfsuite.Tagger()
-    tagger.open(model_name)
+    with open('test_data_annotated.txt',mode='wt',encoding='utf-8') as output_file:
+        for sent,labels in zip(X_test,y_pred):
+            for word, label in zip(sent,labels):
+                print(f'{word[1][2:]} {label}', file=output_file)
+            print(file=output_file)
 
-    y_pred = []
-    for xseq in X_test:
-        labels = tagger.tag(xseq)
-        y_pred.append(labels)
-        for token, label in zip(xseq,labels):
-            print(token[1][2:],label)
-        print()
-
-    # print(bio_classification_report(y_test, y_pred))
+    print(flat_classification_report(y_test, y_pred))
 
 
 if __name__ == '__main__':

@@ -135,6 +135,8 @@ def main():
     with open(model_name, mode='wb') as output_file:
         pickle.dump(model, output_file)
 
+    print(model)
+
     y_pred = model.predict(X_train)
 
     print(flat_classification_report(y_train, y_pred, labels=labels, digits=3))
