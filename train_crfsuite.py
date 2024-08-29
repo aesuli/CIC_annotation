@@ -108,8 +108,8 @@ def main(zip_file_path, username):
     )
 
     params_space = {
-        'all_possible_transitions':[True,False],
-        'all_possible_states':[True,False],
+        'all_possible_transitions': [True, False],
+        'all_possible_states': [True, False],
         'c1': scipy.stats.expon(scale=0.5),
         'c2': scipy.stats.expon(scale=0.05),
     }
@@ -124,7 +124,7 @@ def main(zip_file_path, username):
                             n_iter=100,
                             scoring=f1_scorer)
 
-    rs.fit(X_train,y_train)
+    rs.fit(X_train, y_train)
 
     pprint(rs.cv_results_)
 
@@ -136,7 +136,6 @@ def main(zip_file_path, username):
 
     with open(model_name, mode='wb') as output_file:
         pickle.dump(model, output_file)
-
 
     y_pred = model.predict(X_train)
 
