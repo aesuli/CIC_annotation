@@ -1,13 +1,17 @@
 import datetime
 import os
 import pickle
+import sys
 from collections import Counter
+from pprint import pprint
 
 import scipy
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn_crfsuite import CRF, metrics
 from sklearn_crfsuite.metrics import flat_classification_report
+
+from cas_to_bioes import read_cas_to_bioes, AnnotationState
 
 BOS = '__BOS__'
 EOS = '__EOS__'
@@ -86,37 +90,31 @@ def sent2tokens(sent):
     return [token for token, label in sent]
 
 
-def main():
-    with open('train_data.txt', mode='rt', encoding='utf-8') as input_file:
-        train_sents = []
-        sent = []
-        for line in input_file:
-            line = line.strip()
-            if len(line) == 0 and len(sent) > 0:
-                train_sents.append(sent)
-                sent = []
-            else:
-                sent.append(line.split(' '))
-        if len(sent) > 0:
-            train_sents.append(sent)
-        X_train = [sent2features(s) for s in train_sents]
-        y_train = [sent2labels(s) for s in train_sents]
+def main(zip_file_path, username):
+    X_train = []
+    y_train = []
+    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
+        print(filename, len(annotations))
+        for sentence in annotations:
+            X_train.append(sent2features(sentence))
+            y_train.append(sent2labels(sentence))
 
-    labels = list(set([label for sent in y_train for label in sent])) #if label != 'O']))
+    labels = list(set([label for sent in y_train for label in sent]))
     print(labels)
 
     crf = CRF(
         algorithm='lbfgs',
-        max_iterations=500,
-        all_possible_transitions=True,
-        all_possible_states=True,
+        max_iterations=1000,
     )
+
     params_space = {
+        'all_possible_transitions':[True,False],
+        'all_possible_states':[True,False],
         'c1': scipy.stats.expon(scale=0.5),
         'c2': scipy.stats.expon(scale=0.05),
     }
 
-    f1_scorer = make_scorer(metrics.flat_f1_score, average='micro', labels=labels)
+    f1_scorer = make_scorer(metrics.flat_f1_score, average='macro', labels=labels)
 
     # search
     rs = RandomizedSearchCV(crf, params_space,
@@ -128,14 +126,17 @@ def main():
 
     rs.fit(X_train,y_train)
 
+    pprint(rs.cv_results_)
+
     model = rs.best_estimator_
+
+    pprint(model)
 
     model_name = f'ner-model_{datetime.datetime.now().isoformat()[:10]}.crfsuite.pkl'
 
     with open(model_name, mode='wb') as output_file:
         pickle.dump(model, output_file)
 
-    print(model)
 
     y_pred = model.predict(X_train)
 
@@ -165,4 +166,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) < 3:
+        print("Usage: python script_name.py <zip_file_path> <username>")
+        sys.exit(1)
+
+    zip_file_path = sys.argv[1]
+    username = sys.argv[2]
+    main(zip_file_path, username)
