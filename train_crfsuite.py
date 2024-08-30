@@ -35,7 +35,7 @@ def word2features(sent, i):
     features = [
         'bias',
     ]
-    features.extend(word_base_feats('w', w))
+    features.extend(word_base_feats('cw', w))
 
     window_size = 6
     ngram_max_size = 3
@@ -43,7 +43,7 @@ def word2features(sent, i):
     seq = []
     for offset in range(-window_size, window_size + 1):
         if offset == 0:
-            seq.append((0, 'w', w))
+            seq.append((0, 'cw', w))
         elif offset < 0:
             pw = BOS
             if i + offset >= 0:
@@ -58,6 +58,15 @@ def word2features(sent, i):
     for offset, prefix, word in seq:
         if offset != 0:
             features.extend(word_base_feats(prefix, word))
+
+    nums_to_label = []
+    for off,feat,w in seq:
+        if w.isdigit():
+            nums_to_label.append((off,feat,'__NUM__'))
+        else:
+            nums_to_label.append((off,feat,w))
+
+    seq = nums_to_label
 
     for n in range(2, ngram_max_size + 1):
         for i in range(len(seq) - n + 1):
@@ -74,6 +83,7 @@ def word2features(sent, i):
                 ngram = ', '.join([f'{seq[len(seq) // 2][1]}={seq[len(seq) // 2][2]}'] +
                                   [f'{prefix}={word}' for offset, prefix, word in seq[i:i + n]])
                 features.append(f'{n + 1}g+=[{ngram}]')
+
 
     return features
 

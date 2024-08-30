@@ -34,7 +34,7 @@ def main(model_name, zip_file_path, username):
                   encoding='utf-8') as output_file:
             for sent, labels in zip(X_test[filename], y):
                 for word, label in zip(sent, labels):
-                    print(f'{word[1][2:]} {label}', file=output_file)
+                    print(f'{word[1][3:]} {label}', file=output_file)
                 print(file=output_file)
 
     def dict_to_flat_list(dictionary):
