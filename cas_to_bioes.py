@@ -11,7 +11,7 @@ class AnnotationState(str, Enum):
     annotated = 'annotated'
     unannotated = 'unannotated'
 
-def read_cas_to_bioes(zip_file_path, username, annotation_state:AnnotationState = None):
+def read_cas_to_bioes(zip_file_path, username, annotation_state:AnnotationState = None, no_bioes_prefix=False):
 
     if annotation_state not in set(AnnotationState):
         raise ValueError(f'Must specifiy and annotation_state in {set(AnnotationState)}')
@@ -48,15 +48,18 @@ def read_cas_to_bioes(zip_file_path, username, annotation_state:AnnotationState 
                                         ner_label = 'O'
 
                                         for ne in cas.select_covering(glossa_type, token):
-                                            if prev_label == 'O':
-                                                ner_label = 'B-AN'
-                                                prev_label = 'AN'
+                                            if no_bioes_prefix:
+                                                ner_label = 'AN'
                                             else:
-                                                ner_label = 'I-AN'
+                                                if prev_label == 'O':
+                                                    ner_label = 'B-AN'
+                                                else:
+                                                    ner_label = 'I-AN'
                                             annotated += 1
                                             break
+                                        prev_label = ner_label
 
-                                        if ner_label == 'O' and len(sentence_with_labels) > 0 and len(sentence_with_labels[-1]) > 0:
+                                        if not no_bioes_prefix and ner_label == 'O' and len(sentence_with_labels) > 0 and len(sentence_with_labels[-1]) > 0:
                                             if sentence_with_labels[-1][1] == 'I-AN':
                                                 sentence_with_labels[-1] = (sentence_with_labels[-1][0], 'E-AN')
                                             elif sentence_with_labels[-1][1] == 'B-AN':
