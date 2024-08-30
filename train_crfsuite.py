@@ -15,6 +15,7 @@ from cas_to_bioes import read_cas_to_bioes, AnnotationState
 
 BOS = '__BOS__'
 EOS = '__EOS__'
+NUM = '__NUM__'
 
 
 def word_base_feats(prefix, w):
@@ -60,11 +61,11 @@ def word2features(sent, i):
             features.extend(word_base_feats(prefix, word))
 
     nums_to_label = []
-    for off,feat,w in seq:
+    for off, feat, w in seq:
         if w.isdigit():
-            nums_to_label.append((off,feat,'__NUM__'))
+            nums_to_label.append((off, feat, NUM))
         else:
-            nums_to_label.append((off,feat,w))
+            nums_to_label.append((off, feat, w))
 
     seq = nums_to_label
 
@@ -83,7 +84,6 @@ def word2features(sent, i):
                 ngram = ', '.join([f'{seq[len(seq) // 2][1]}={seq[len(seq) // 2][2]}'] +
                                   [f'{prefix}={word}' for offset, prefix, word in seq[i:i + n]])
                 features.append(f'{n + 1}g+=[{ngram}]')
-
 
     return features
 

@@ -1,78 +1,110 @@
-import io
+import os.path
 import os.path
 import sys
-import zipfile
+from collections import defaultdict
+from pathlib import Path
 
-import cassis
+from sklearn_crfsuite.metrics import flat_classification_report
+
+from cas_to_bioes import read_cas_to_bioes, AnnotationState
+from train_crfsuite import sent2tokens, sent2labels, NUM
+from trie import Trie
 
 
-def main(zip_file_path, username,overwrite=False):
-    annotations = read_annotations(zip_file_path,username,overwrite)
-    annotate(zip_file_path, username, annotations)
+def main(zip_file_path, username):
+    annotated_spans = []
+    pre_post_len = 3
+    pre_spans = []
+    post_spans = []
+    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
+        print(filename, len(annotations))
+        for sentence in annotations:
+            annotation = []
+            pre = []
+            post = ['*'] * (pre_post_len + 1)
+            for token, label in sentence:
+                if token.isdigit():
+                    token = NUM
+                if label != 'O':
+                    if len(annotation) == 0:
+                        pre_spans.append(tuple(pre))
+                        pre = []
+                    annotation.append(token)
+                elif len(annotation) > 0:
+                    annotated_spans.append(tuple(annotation))
+                    annotation = []
+                    post = []
+                pre.append(token)
+                if len(post) < pre_post_len:
+                    post.append(token)
+                elif len(post) == pre_post_len:
+                    post_spans.append(tuple(post))
+                    post.append('*')
+                pre = pre[-pre_post_len:]
+            if len(annotation) > 0:
+                annotated_spans.append(tuple(annotation))
 
-def read_annotations(zip_file_path, username, overwrite=False):
-    if overwrite or not os.path.exists('annotations.txt'):
-        suffix = username + ".zip"
+    annotation_trie = Trie(annotated_spans)
+    pre_trie = Trie(pre_spans)
+    post_trie = Trie(post_spans)
 
-        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-            inner_zip_files = [file_name for file_name in zip_ref.namelist() if file_name.endswith(suffix)]
+    X_test = defaultdict(list)
+    X_test_num = defaultdict(list)
+    y_test = defaultdict(list)
+    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.unannotated):
+        for sentence in annotations:
+            tokens = sent2tokens(sentence)
+            tokens_num = [token if not token.isdigit() else NUM for token in tokens ]
+            X_test[filename].append(tokens)
+            X_test_num[filename].append(tokens_num)
+            y_test[filename].append(sent2labels(sentence))
 
-            annotations = list()
-            for inner_zip_name in inner_zip_files:
-                with zip_ref.open(inner_zip_name) as inner_zip_file:
-                    with zipfile.ZipFile(io.BytesIO(inner_zip_file.read())) as inner_zip_ref:
-                        inner_file_list = inner_zip_ref.namelist()
-                        with inner_zip_ref.open('TypeSystem.xml', mode='r') as typesystem_file:
-                            typesystem = cassis.load_typesystem(typesystem_file)
-                        for file_name in inner_file_list:
-                            if file_name.endswith('.xmi'):
-                                with inner_zip_ref.open(file_name, mode='r') as xmi_file:
-                                    cas = cassis.load_cas_from_xmi(xmi_file, typesystem)
-                                    annos = cas.select_all()
-                                    annotated = 0
-                                    for anno in annos:
-                                        if anno.type.name.find('custom') > 0:
-                                            annotations.append(f'{anno.get_covered_text()}')
-                                            annotated += 1
-                                    if annotated > 0:
-                                        print(inner_zip_name, annotated, len(annotations), len(set(annotations)))
-            annotations = set(annotations)
+    y_pred = defaultdict(list)
+    for filename, X_num in X_test_num.items():
+        print(filename)
+        for sentence_num in X_num:
+            labels = ['O'] * len(sentence_num)
+            for i in range(len(sentence_num)):
+                matches = list(annotation_trie.prefix_matches(sentence_num[i:]))
+                if len(matches) > 0:
+                    labels[i] = 'B-AN'
+                    for j in range(1, len(matches[-1][0]) - 1):
+                        labels[i + j] = 'I-AN'
+                    labels[i + len(matches[-1][0]) - 1] = 'E-AN'
+                matches = list(pre_trie.prefix_matches(sentence_num[i:]))
+                if len(matches) > 0:
+                    if labels[i] == 'O':
+                        labels[i] = 'PRE'
+                    for j in range(1, len(matches[-1][0]) - 1):
+                        if labels[i + j] == 'O':
+                            labels[i + j] = 'PRE'
+                    if labels[i + len(matches[-1][0]) - 1] == 'O':
+                        labels[i + len(matches[-1][0]) - 1] = 'PRE'
+                matches = list(post_trie.prefix_matches(sentence_num[i:]))
+                if len(matches) > 0:
+                    if labels[i] == 'O':
+                        labels[i] = 'POST'
+                    for j in range(1, len(matches[-1][0]) - 1):
+                        if labels[i + j] == 'O':
+                            labels[i + j] = 'POST'
+                    if labels[i + len(matches[-1][0]) - 1] == 'O':
+                        labels[i + len(matches[-1][0]) - 1] = 'POST'
+            y_pred[filename].append(labels)
 
-            with open('annotations.txt',mode='wt',encoding='utf-8') as output_file:
-                for annotation in sorted(annotations):
-                    print(annotation,file=output_file)
-            return annotations
+    output_dirname = 'annotations_by_match'
+    os.makedirs(output_dirname, exist_ok=True)
+    for filename, y in y_pred.items():
+        with open(Path(output_dirname) / filename[filename.find('/') + 1:filename.rfind('/')], mode='wt',
+                  encoding='utf-8') as output_file:
+            for sent, labels in zip(X_test[filename], y):
+                for word, label in zip(sent, labels):
+                    print(f'{word} {label}', file=output_file)
+                print(file=output_file)
 
-    with open('annotations.txt', mode='rt', encoding='utf-8') as input_file:
-        return set([line.strip() for line in input_file.readlines()])
+    def dict_to_flat_list(dictionary):
+        return [item for value in dictionary.values() for item in value]
 
-def annotate(zip_file_path, username, annotations):
-    suffix = username + ".zip"
-
-    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-        inner_zip_files = [file_name for file_name in zip_ref.namelist() if file_name.endswith(suffix)]
-        for inner_zip_name in inner_zip_files:
-            with zip_ref.open(inner_zip_name) as inner_zip_file:
-                with zipfile.ZipFile(io.BytesIO(inner_zip_file.read())) as inner_zip_ref:
-                    inner_file_list = inner_zip_ref.namelist()
-                    with inner_zip_ref.open('TypeSystem.xml', mode='r') as typesystem_file:
-                        typesystem = cassis.load_typesystem(typesystem_file)
-                    for file_name in inner_file_list:
-                        if file_name.endswith('.xmi'):
-                            with inner_zip_ref.open(file_name, mode='r') as xmi_file:
-                                cas = cassis.load_cas_from_xmi(xmi_file, typesystem)
-                                annos = cas.select_all()
-                                annotated = 0
-                                for anno in annos:
-                                    if anno.type.name.find('custom') > 0:
-                                        annotated += 1
-                                        break
-                                if annotated == 0:
-                                    text = cas.get_document_annotation().get_covered_text()
-                                    for annotation in annotations:
-                                        if annotation in text:
-                                            annotated += 1
-                                print(inner_zip_name, annotated)
+    print(flat_classification_report(dict_to_flat_list(y_test), dict_to_flat_list(y_pred)))
 
 
 if __name__ == '__main__':
