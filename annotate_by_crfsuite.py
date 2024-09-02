@@ -10,8 +10,8 @@ from cas_to_bioes import read_cas_to_bioes, AnnotationState
 from train_crfsuite import sent2features, sent2labels
 
 
-def main(model_name, zip_file_path, username):
-    with open(model_name, mode='rb') as input_file:
+def main(model_filename, zip_file_path, username):
+    with open(model_filename, mode='rb') as input_file:
         model = pickle.load(input_file)
 
     X_test = defaultdict(list)
@@ -44,7 +44,11 @@ def main(model_name, zip_file_path, username):
 
 
 if __name__ == '__main__':
-    model_name = sys.argv[1]
+    if len(sys.argv) < 3:
+        print("Usage: python script_name.py <model_file_path> <zip_file_path> <username>")
+        sys.exit(1)
+
+    model_filename = sys.argv[1]
     zip_filename = sys.argv[2]
     username = sys.argv[3]
-    main(model_name, zip_filename, username)
+    main(model_filename, zip_filename, username)

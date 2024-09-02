@@ -1,5 +1,6 @@
 import os.path
 import os.path
+import pickle
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -8,45 +9,13 @@ from sklearn_crfsuite.metrics import flat_classification_report
 
 from cas_to_bioes import read_cas_to_bioes, AnnotationState
 from train_crfsuite import sent2tokens, sent2labels, NUM
-from trie import Trie
 
 
-def main(zip_file_path, username):
-    annotated_spans = []
-    pre_post_len = 3
-    pre_spans = []
-    post_spans = []
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
-        print(filename, len(annotations))
-        for sentence in annotations:
-            annotation = []
-            pre = []
-            post = ['*'] * (pre_post_len + 1)
-            for token, label in sentence:
-                if token.isdigit():
-                    token = NUM
-                if label != 'O':
-                    if len(annotation) == 0:
-                        pre_spans.append(tuple(pre))
-                        pre = []
-                    annotation.append(token)
-                elif len(annotation) > 0:
-                    annotated_spans.append(tuple(annotation))
-                    annotation = []
-                    post = []
-                pre.append(token)
-                if len(post) < pre_post_len:
-                    post.append(token)
-                elif len(post) == pre_post_len:
-                    post_spans.append(tuple(post))
-                    post.append('*')
-                pre = pre[-pre_post_len:]
-            if len(annotation) > 0:
-                annotated_spans.append(tuple(annotation))
-
-    annotation_trie = Trie(annotated_spans)
-    pre_trie = Trie(pre_spans)
-    post_trie = Trie(post_spans)
+def main(model_filename, zip_file_path, username):
+    with open(model_filename, mode='rb') as input_file:
+        annotation_trie = pickle.load(input_file)
+        pre_trie = pickle.load(input_file)
+        post_trie = pickle.load(input_file)
 
     X_test = defaultdict(list)
     X_test_num = defaultdict(list)
@@ -54,7 +23,7 @@ def main(zip_file_path, username):
     for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.unannotated):
         for sentence in annotations:
             tokens = sent2tokens(sentence)
-            tokens_num = [token if not token.isdigit() else NUM for token in tokens ]
+            tokens_num = [token if not token.isdigit() else NUM for token in tokens]
             X_test[filename].append(tokens)
             X_test_num[filename].append(tokens_num)
             y_test[filename].append(sent2labels(sentence))
@@ -109,9 +78,10 @@ def main(zip_file_path, username):
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print("Usage: python script_name.py <zip_file_path> <username>")
+        print("Usage: python script_name.py <model_file_path> <zip_file_path> <username>")
         sys.exit(1)
 
-    zip_file_path = sys.argv[1]
-    username = sys.argv[2]
-    main(zip_file_path, username)
+    model_filename = sys.argv[1]
+    zip_filename = sys.argv[2]
+    username = sys.argv[3]
+    main(model_filename, zip_filename, username)
