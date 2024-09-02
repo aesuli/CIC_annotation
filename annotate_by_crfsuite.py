@@ -16,7 +16,7 @@ def main(model_filename, zip_file_path, username):
 
     X_test = defaultdict(list)
     y_test = defaultdict(list)
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.unannotated):
+    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
         print(filename, len(annotations))
         for sentence in annotations:
             X_test[filename].append(sent2features(sentence))
