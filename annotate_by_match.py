@@ -20,12 +20,12 @@ def main(model_filename, zip_file_path, username):
     X_test = defaultdict(list)
     X_test_num = defaultdict(list)
     y_test = defaultdict(list)
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
+    texts = dict()
+    for filename, text, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
+        texts[filename] = text
         for sentence in annotations:
-            tokens = sent2tokens(sentence)
-            tokens_num = [token if not token.isdigit() else NUM for token in tokens]
-            X_test[filename].append(tokens)
-            X_test_num[filename].append(tokens_num)
+            X_test[filename].append([(token, start, end) for token, start, end, _ in sentence])
+            X_test_num[filename].append([token if not token.isdigit() else NUM for token in sent2tokens(sentence)])
             y_test[filename].append(sent2labels(sentence))
 
     min_pre_post_count = 10
@@ -43,7 +43,7 @@ def main(model_filename, zip_file_path, username):
                         labels[i + j] = 'I-AN'
                     labels[i + len(matches[-1][0]) - 1] = 'E-AN'
                 matches = list(pre_trie.prefix_matches(sentence_num[i:]))
-                if len(matches) > 0 and matches[0][1]> min_pre_post_count:
+                if len(matches) > 0 and matches[0][1] > min_pre_post_count:
                     if labels[i] == 'O':
                         labels[i] = 'PRE'
                     for j in range(1, len(matches[-1][0]) - 1):
@@ -52,7 +52,7 @@ def main(model_filename, zip_file_path, username):
                     if labels[i + len(matches[-1][0]) - 1] == 'O':
                         labels[i + len(matches[-1][0]) - 1] = 'PRE'
                 matches = list(post_trie.prefix_matches(sentence_num[i:]))
-                if len(matches) > 0 and matches[0][1]> min_pre_post_count:
+                if len(matches) > 0 and matches[0][1] > min_pre_post_count:
                     if labels[i] == 'O':
                         labels[i] = 'POST'
                     for j in range(1, len(matches[-1][0]) - 1):
@@ -66,22 +66,30 @@ def main(model_filename, zip_file_path, username):
     for filename, annotations in y_pred.items():
         for sentence in annotations:
             for i in range(len(sentence)):
-                if sentence[i]=='PRE':
-                    j = i+1
-                    while j<len(sentence) and sentence[j]=='O' and j-i<maximum_pre_post_distance:
+                if sentence[i] == 'PRE':
+                    j = i + 1
+                    while j < len(sentence) and sentence[j] == 'O' and j - i < maximum_pre_post_distance:
                         j += 1
-                    if j<len(sentence) and sentence[j]=='POST':
-                        for k in range(i+1,j):
-                            sentence[k] = 'P-AN'
+                    if j < len(sentence) and sentence[j] == 'POST':
+                        if i + 1 - j == 1:
+                            sentence[k] = 'S-AN'
+                        if i + 1 - j > 1:
+                            sentence[i + 1] = 'B-AN'
+                            sentence[j - 1] = 'E-AN'
+                            for k in range(i + 2, j - 1):
+                                sentence[k] = 'I-AN'
 
     output_dirname = 'annotations_by_match'
     os.makedirs(output_dirname, exist_ok=True)
     for filename, y in y_pred.items():
-        with open(Path(output_dirname) / filename[filename.find('/') + 1:filename.rfind('/')], mode='wt',
-                  encoding='utf-8') as output_file:
+        with (Path(output_dirname) / filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',
+                                                                                                encoding='utf-8') as output_file:
+            print(texts[filename], file=output_file, end='')
+        with (Path(output_dirname) / (filename[filename.find('/') + 1:filename.rfind('/')] + '.bioes')).open(mode='wt',
+                                                                                                             encoding='utf-8') as output_file:
             for sent, labels in zip(X_test[filename], y):
-                for word, label in zip(sent, labels):
-                    print(f'{word} {label}', file=output_file)
+                for (word, start, end), label in zip(sent, labels):
+                    print(f'{word} {start} {end} {label}', file=output_file)
                 print(file=output_file)
 
     def dict_to_flat_list(dictionary):

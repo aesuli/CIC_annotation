@@ -15,15 +15,19 @@ def main(model_filename, zip_file_path, username):
         model = pickle.load(input_file)
 
     X_test = defaultdict(list)
+    X_test_features = defaultdict(list)
     y_test = defaultdict(list)
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
+    texts = dict()
+    for filename, text, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
         print(filename, len(annotations))
+        texts[filename] = text
         for sentence in annotations:
-            X_test[filename].append(sent2features(sentence))
+            X_test[filename].append([(token, start, end) for token, start, end, _ in sentence])
+            X_test_features[filename].append(sent2features(sentence))
             y_test[filename].append(sent2labels(sentence))
 
     y_pred = defaultdict(list)
-    for filename, X in X_test.items():
+    for filename, X in X_test_features.items():
         print(filename)
         y_pred[filename] = model.predict(X)
 
@@ -32,9 +36,12 @@ def main(model_filename, zip_file_path, username):
     for filename, y in y_pred.items():
         with open(Path(output_dirname) / filename[filename.find('/') + 1:filename.rfind('/')], mode='wt',
                   encoding='utf-8') as output_file:
+            print(texts[filename],file=output_file, end='')
+        with open(Path(output_dirname) / (filename[filename.find('/') + 1:filename.rfind('/')]+'.bioes'), mode='wt',
+                  encoding='utf-8') as output_file:
             for sent, labels in zip(X_test[filename], y):
-                for word, label in zip(sent, labels):
-                    print(f'{word[1][3:]} {label}', file=output_file)
+                for (word, start, end), label in zip(sent, labels):
+                    print(f'{word} {start} {end} {label}', file=output_file)
                 print(file=output_file)
 
     def dict_to_flat_list(dictionary):

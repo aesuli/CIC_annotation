@@ -93,17 +93,17 @@ def sent2features(sent):
 
 
 def sent2labels(sent):
-    return [label for token, label in sent]
+    return [label for token, begin, end, label in sent]
 
 
 def sent2tokens(sent):
-    return [token for token, label in sent]
+    return [token for token, begin, end, label in sent]
 
 
 def main(zip_file_path, username):
     X_train = []
     y_train = []
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
+    for filename, _, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
         print(filename, len(annotations))
         for sentence in annotations:
             X_train.append(sent2features(sentence))

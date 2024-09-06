@@ -14,16 +14,16 @@ def main(zip_file_path, username):
     pre_post_len = 3
     pre_spans = []
     post_spans = []
-    train_annotations_dir = Path('annotations_train')
+    train_annotations_dir = Path('annotations_bioes')
     train_annotations_dir.mkdir(parents=True,exist_ok=True)
-    for filename, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
+    for filename, _, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
         print(filename, len(annotations))
         with (train_annotations_dir/ filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',encoding='utf-8') as output_file:
             for sentence in annotations:
                 annotation = []
                 pre = []
                 post = ['*'] * (pre_post_len + 1)
-                for token, label in sentence:
+                for token, begin, end, label in sentence:
                     print(f'{token} {label}', file=output_file)
                     if token.isdigit():
                         token = NUM
