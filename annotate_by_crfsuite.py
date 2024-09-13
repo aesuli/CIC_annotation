@@ -41,7 +41,10 @@ def main(model_filename, zip_file_path, username):
                   encoding='utf-8') as output_file:
             for sent, labels in zip(X_test[filename], y):
                 for (word, start, end), label in zip(sent, labels):
-                    print(f'{word} {start} {end} {label}', file=output_file)
+                    if label == 'O':
+                        print(f'{word} {start} {end} {label}', file=output_file)
+                    else:
+                        print(f'{word} {start} {end} CRF|{label}', file=output_file)
                 print(file=output_file)
 
     def dict_to_flat_list(dictionary):

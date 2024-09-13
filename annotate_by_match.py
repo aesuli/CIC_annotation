@@ -1,3 +1,4 @@
+import math
 import os.path
 import os.path
 import pickle
@@ -16,6 +17,7 @@ def main(model_filename, zip_file_path, username):
         annotation_trie = pickle.load(input_file)
         pre_trie = pickle.load(input_file)
         post_trie = pickle.load(input_file)
+        stats = pickle.load(input_file)
 
     X_test = defaultdict(list)
     X_test_num = defaultdict(list)
@@ -38,10 +40,10 @@ def main(model_filename, zip_file_path, username):
             for i in range(len(sentence_num)):
                 matches = list(annotation_trie.prefix_matches(sentence_num[i:]))
                 if len(matches) > 0:
-                    labels[i] = 'B-AN'
+                    labels[i] = 'MATCH|B-AN'
                     for j in range(1, len(matches[-1][0]) - 1):
-                        labels[i + j] = 'I-AN'
-                    labels[i + len(matches[-1][0]) - 1] = 'E-AN'
+                        labels[i + j] = 'MATCH|I-AN'
+                    labels[i + len(matches[-1][0]) - 1] = 'MATCH|E-AN'
                 matches = list(pre_trie.prefix_matches(sentence_num[i:]))
                 if len(matches) > 0 and matches[0][1] > min_pre_post_count:
                     if labels[i] == 'O':
@@ -62,22 +64,34 @@ def main(model_filename, zip_file_path, username):
                         labels[i + len(matches[-1][0]) - 1] = 'POST'
             y_pred[filename].append(labels)
 
-    maximum_pre_post_distance = 8
+    den = 0
+    num = 0
+    squares = 0
+    for value, freq in stats.items():
+        den += freq
+        partial = value * freq
+        num += partial
+        squares += partial * value
+    mean = num / den
+    variance = (squares / den) - (mean * mean)
+    std_dev = math.sqrt(variance)
+    print(mean, std_dev)
+
     for filename, annotations in y_pred.items():
-        for sentence in annotations:
+        for w, sentence in enumerate(annotations):
             for i in range(len(sentence)):
                 if sentence[i] == 'PRE':
                     j = i + 1
-                    while j < len(sentence) and sentence[j] == 'O' and j - i < maximum_pre_post_distance:
+                    while j < len(sentence) and sentence[j] == 'O' and j - i < mean + std_dev * 2:
                         j += 1
-                    if j < len(sentence) and sentence[j] == 'POST':
-                        if i + 1 - j == 1:
-                            sentence[k] = 'S-AN'
-                        if i + 1 - j > 1:
-                            sentence[i + 1] = 'B-AN'
-                            sentence[j - 1] = 'E-AN'
+                    if mean - std_dev * 2 < j - i < mean + std_dev * 2 and j < len(sentence) and sentence[j] == 'POST':
+                        if j - i - 1 == 1:
+                            sentence[i + 1] = 'PREPOST|S-AN'
+                        if j - i - 1 > 1:
+                            sentence[i + 1] = 'PREPOST|B-AN'
+                            sentence[j - 1] = 'PREPOST|E-AN'
                             for k in range(i + 2, j - 1):
-                                sentence[k] = 'I-AN'
+                                sentence[k] = 'PREPOST|I-AN'
 
     output_dirname = 'annotations_by_match'
     os.makedirs(output_dirname, exist_ok=True)

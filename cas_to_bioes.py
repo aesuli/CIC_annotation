@@ -54,9 +54,9 @@ def read_cas_to_bioes(zip_file_path, username, annotation_state: AnnotationState
                                                 ner_label = 'AN'
                                             else:
                                                 if prev_label == 'O':
-                                                    ner_label = 'B-AN'
+                                                    ner_label = 'SOURCE|B-AN'
                                                 else:
-                                                    ner_label = 'I-AN'
+                                                    ner_label = 'SOURCE|I-AN'
                                             annotated += 1
                                             break
                                         prev_label = ner_label
@@ -64,9 +64,9 @@ def read_cas_to_bioes(zip_file_path, username, annotation_state: AnnotationState
                                         if not no_bioes_prefix and ner_label == 'O' and len(
                                                 sentence_annotations) > 0 and len(sentence_annotations[-1]) > 0:
                                             if sentence_annotations[-1][3] == 'I-AN':
-                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'E-AN')
+                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|E-AN')
                                             elif sentence_annotations[-1][3] == 'B-AN':
-                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'S-AN')
+                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|S-AN')
 
                                         conll_line = (token.get_covered_text(), token.begin, token.end, ner_label)
                                         sentence_annotations.append(conll_line)

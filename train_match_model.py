@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 import sys
+from collections import Counter
 from pathlib import Path
 
 from cas_to_bioes import read_cas_to_bioes, AnnotationState
@@ -16,6 +17,7 @@ def main(zip_file_path, username):
     post_spans = []
     train_annotations_dir = Path('annotations_bioes')
     train_annotations_dir.mkdir(parents=True,exist_ok=True)
+    stats = Counter()
     for filename, _, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
         print(filename, len(annotations))
         with (train_annotations_dir/ filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',encoding='utf-8') as output_file:
@@ -34,6 +36,7 @@ def main(zip_file_path, username):
                         annotation.append(token)
                     elif len(annotation) > 0:
                         annotated_spans.append(tuple(annotation))
+                        stats.update([len(annotation)])
                         annotation = []
                         post = []
                     pre.append(token)
@@ -57,6 +60,7 @@ def main(zip_file_path, username):
         pickle.dump(annotation_trie, output_file)
         pickle.dump(pre_trie, output_file)
         pickle.dump(post_trie, output_file)
+        pickle.dump(stats, output_file)
 
 
 if __name__ == '__main__':
