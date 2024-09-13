@@ -57,8 +57,7 @@ def main(source_dir, target_dir):
                         annotation_start = -1
                     elif label.endswith('AN') and last_label == 'O':
                         annotation_start = start
-
-                    last_end = end
+                        last_end = end
 
                     if label.endswith('AN'):
                         last_label = 'AN'
