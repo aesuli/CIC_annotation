@@ -98,7 +98,7 @@ def main(model_filename, zip_file_path, username):
     for filename, y in y_pred.items():
         with (Path(output_dirname) / filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',
                                                                                                 encoding='utf-8') as output_file:
-            print(texts[filename], file=output_file, end='')
+            print(texts[filename].replace('\r',''), file=output_file, end='')
         with (Path(output_dirname) / (filename[filename.find('/') + 1:filename.rfind('/')] + '.bioes')).open(mode='wt',
                                                                                                              encoding='utf-8') as output_file:
             for sent, labels in zip(X_test[filename], y):

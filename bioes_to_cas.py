@@ -25,7 +25,7 @@ typesystem_content = '''<?xml version="1.0" encoding="UTF-8"?>
 '''
 
 
-def main(source_dir, target_dir):
+def main(source_dir, target_dir, mark_source=False):
     target_dir = Path(target_dir)
 
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -50,17 +50,22 @@ def main(source_dir, target_dir):
                 line = line.strip()
                 if len(line) > 0:
                     token, start, end, label = line.split(' ')
-                    if not label.endswith('AN') and last_label == 'AN':
-                        glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo='Allegazione normativa')
+                    if not label.endswith('AN') and last_label.endswith('AN'):
+                        if mark_source:
+                            source = last_label.split('|')[0]
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
+                        else:
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Allegazione normativa')
                         cas.add(glossa)
-                        last_end = -1
                         annotation_start = -1
                     elif label.endswith('AN') and last_label == 'O':
                         annotation_start = start
-                        last_end = end
+
+                    last_end = end
 
                     if label.endswith('AN'):
-                        last_label = 'AN'
+                        last_label = label
                     else:
                         last_label = 'O'
                 else:

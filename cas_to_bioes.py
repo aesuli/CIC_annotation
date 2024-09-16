@@ -87,8 +87,8 @@ def main(zip_file_path, username):
 
     for filename, text, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
         with (output_dir / filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',
-                                                                                      encoding='utf-8') as output_file:
-            output_file.write(text.replace('\r',''))
+                  encoding='utf-8') as output_file:
+            print(text.replace('\r',''),file=output_file, end='')
         with (output_dir / (filename[filename.find('/') + 1:filename.rfind('/')]+'.bioes')).open(mode='wt',
                                                                                       encoding='utf-8') as output_file:
             print(filename, len(annotations))
