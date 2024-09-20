@@ -42,7 +42,7 @@ def main(lemma_file_path, zip_file_path, username):
                             if texts[filename][start-1]==' ' and texts[filename][start-2]=='\n':
                                 in_lemma = True
                                 start_lemma = i
-                    if next_lemma.endswith(token):
+                    if in_lemma and next_lemma.endswith(token):
                         if i-start_lemma==0:
                             labels[i] = 'S-LEMMA'
                         else:

@@ -46,32 +46,60 @@ def main(source_dir, target_dir, mark_source=False):
             last_label = 'O'
             last_end = -1
             annotation_start = -1
+            annotation_type = None
             for line in input_file:
                 line = line.strip()
                 if len(line) > 0:
                     token, start, end, label = line.split(' ')
-                    if not label.endswith('AN') and last_label.endswith('AN'):
-                        if mark_source:
-                            source = last_label.split('|')[0]
-                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
-                        else:
+                    if annotation_type is not None and not label.endswith(annotation_type) and last_label.endswith(annotation_type):
+                        if annotation_type=='AN':
+                            if mark_source:
+                                source = last_label.split('|')[0]
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
+                            else:
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                          Tipo='Allegazione normativa')
+                        elif annotation_type=='LEMMA':
                             glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
-                                                      Tipo='Allegazione normativa')
+                                                      Tipo='Lemma glossato')
+                        else:
+                            raise ValueError(f'Unknown annotation type {annotation_type}')
                         cas.add(glossa)
                         annotation_start = -1
+                        annotation_type = None
                     elif label.endswith('AN') and last_label == 'O':
                         annotation_start = start
+                        annotation_type = 'AN'
+                    elif label.endswith('LEMMA') and last_label == 'O':
+                        annotation_start = start
+                        annotation_type = 'LEMMA'
 
                     last_end = end
 
-                    if label.endswith('AN'):
+                    if label.endswith('AN') or label.endswith('LEMMA'):
                         last_label = label
                     else:
                         last_label = 'O'
                 else:
+                    if annotation_type is not None and last_label.endswith(annotation_type):
+                        if annotation_type=='AN':
+                            if mark_source:
+                                source = last_label.split('|')[0]
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
+                            else:
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                          Tipo='Allegazione normativa')
+                        elif annotation_type=='LEMMA':
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Lemma glossato')
+                        else:
+                            raise ValueError(f'Unknown annotation type {annotation_type}')
+                        cas.add(glossa)
+
                     last_label = 'O'
                     last_end = -1
                     annotation_start = -1
+                    annotation_type = None
             cas.to_xmi(target_dir / file_source.name.replace('.txt.bioes', '.xmi'), pretty_print=True)
 
 
