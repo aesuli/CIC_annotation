@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     source_dir = sys.argv[1]
     
-    with open(f'stats_{source_dir}.md',mode='wt',encoding='utf-8') as output_file:
+    with open(f'stats_{Path(source_dir).name}.md',mode='wt',encoding='utf-8') as output_file:
         print('# Plain stats',file=output_file)
         main(source_dir, output_file)
         print(file=output_file)
