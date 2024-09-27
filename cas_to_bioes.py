@@ -13,7 +13,7 @@ class AnnotationState(str, Enum):
     unannotated = 'unannotated'
 
 
-def read_cas_to_bioes(zip_file_path, username, annotation_state: AnnotationState = None, no_bioes_prefix=False):
+def read_cas_to_bioes(zip_file_path, username, annotation_state: AnnotationState = None, no_bioes_prefix=False, mark_source=False):
     if annotation_state not in set(AnnotationState):
         raise ValueError(f'Must specifiy and annotation_state in {set(AnnotationState)}')
 
@@ -54,19 +54,31 @@ def read_cas_to_bioes(zip_file_path, username, annotation_state: AnnotationState
                                                 ner_label = 'AN'
                                             else:
                                                 if prev_label == 'O':
-                                                    ner_label = 'SOURCE|B-AN'
+                                                    if mark_source:
+                                                        ner_label = 'SOURCE|B-AN'
+                                                    else:
+                                                        ner_label = 'B-AN'
                                                 else:
-                                                    ner_label = 'SOURCE|I-AN'
+                                                    if mark_source:
+                                                        ner_label = 'SOURCE|I-AN'
+                                                    else:
+                                                        ner_label = 'I-AN'
                                             annotated += 1
                                             break
                                         prev_label = ner_label
 
                                         if not no_bioes_prefix and ner_label == 'O' and len(
                                                 sentence_annotations) > 0 and len(sentence_annotations[-1]) > 0:
-                                            if sentence_annotations[-1][3] == 'I-AN':
-                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|E-AN')
-                                            elif sentence_annotations[-1][3] == 'B-AN':
-                                                sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|S-AN')
+                                            if mark_source:
+                                                if sentence_annotations[-1][3] == 'SOURCE|I-AN':
+                                                    sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|E-AN')
+                                                elif sentence_annotations[-1][3] == 'SOURCE|B-AN':
+                                                    sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'SOURCE|S-AN')
+                                            else:
+                                                if sentence_annotations[-1][3] == 'I-AN':
+                                                    sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'E-AN')
+                                                elif sentence_annotations[-1][3] == 'B-AN':
+                                                    sentence_annotations[-1] = (sentence_annotations[-1][0], token.begin, token.end, 'S-AN')
 
                                         conll_line = (token.get_covered_text(), token.begin, token.end, ner_label)
                                         sentence_annotations.append(conll_line)
@@ -85,7 +97,7 @@ def main(zip_file_path, username):
     output_dir = Path('annotations_bioes')
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for filename, text, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any):
+    for filename, text, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.any, mark_source=True):
         with (output_dir / filename[filename.find('/') + 1:filename.rfind('/')]).open(mode='wt',
                   encoding='utf-8') as output_file:
             print(text.replace('\r',''),file=output_file, end='')

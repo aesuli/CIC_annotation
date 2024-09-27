@@ -91,7 +91,7 @@ def main(source_dir, output_file, mark_source=False):
 
     print('## By document statistics',file=output_file)
     for filename in by_file_stats:
-        print(filename,file=output_file)
+        print(Path(filename).name.replace(".txt.bioes",""),file=output_file)
         print(file=output_file)
         print('| TYPE |  COUNT |',file=output_file)
         print('|:-----|-------:|',file=output_file)

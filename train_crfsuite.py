@@ -100,14 +100,18 @@ def sent2tokens(sent):
     return [token for token, begin, end, label in sent]
 
 
-def main(zip_file_path, username):
+def main(tagged_files_filename, zip_file_path, username):
+    with open(tagged_files_filename,mode='rt',encoding='utf-8') as input_file:
+        file_list = [line.strip() for line in input_file]
+
     X_train = []
     y_train = []
     for filename, _, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
-        print(filename, len(annotations))
-        for sentence in annotations:
-            X_train.append(sent2features(sentence))
-            y_train.append(sent2labels(sentence))
+        if filename[filename.find('annotation/')+len('annotation/'):filename.find(' ')] in file_list:
+            print(filename, len(annotations))
+            for sentence in annotations:
+                X_train.append(sent2features(sentence))
+                y_train.append(sent2labels(sentence))
 
     labels = list(set([label for sent in y_train for label in sent]))
     print(labels)
@@ -175,10 +179,12 @@ def main(zip_file_path, username):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print("Usage: python script_name.py <zip_file_path> <username>")
+    if len(sys.argv) < 4:
+        print("Usage: python script_name.py <tagged_files_filename> <zip_file_path> <username>")
         sys.exit(1)
 
-    zip_file_path = sys.argv[1]
-    username = sys.argv[2]
-    main(zip_file_path, username)
+    tagged_files_filename = sys.argv[1]
+    zip_file_path = sys.argv[2]
+    username = sys.argv[3]
+
+    main(tagged_files_filename, zip_file_path, username)
