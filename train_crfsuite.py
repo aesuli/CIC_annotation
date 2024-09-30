@@ -106,12 +106,18 @@ def main(tagged_files_filename, zip_file_path, username):
 
     X_train = []
     y_train = []
+    count =1
     for filename, _, annotations in read_cas_to_bioes(zip_file_path, username, AnnotationState.annotated):
         if filename[filename.find('annotation/')+len('annotation/'):filename.find(' ')] in file_list:
             print(filename, len(annotations))
             for sentence in annotations:
+                for _,_,_,label in sentence:
+                    if label.startswith('B') or label.startswith('S'):
+                        count += 1
                 X_train.append(sent2features(sentence))
                 y_train.append(sent2labels(sentence))
+
+    print(f'{count} annotations')
 
     labels = list(set([label for sent in y_train for label in sent]))
     print(labels)
