@@ -28,7 +28,10 @@ def main(lemma_file_path, zip_file_path, username):
 
     y_pred = defaultdict(list)
     next_lemma = lemmas.pop()
-    for filename, X in sorted(X_test.items()):
+    sorted_files = list(sorted(X_test.items()))
+    first_file = sorted_files[-1]
+    sorted_files = [first_file]+sorted_files[:-1]
+    for filename, X in sorted_files:
         print(filename)
         for sentence in X:
             labels = ['O'] * len(sentence)

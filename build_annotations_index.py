@@ -32,8 +32,9 @@ def main(source_dir, output_filename):
     index = defaultdict(lambda: defaultdict(list))
     source_dir = Path(source_dir)
     for file_source in source_dir.glob('*.xmi'):
+        capitolo = '0.00.00'
         with (file_source.open(mode='rt', encoding='utf-8') as input_file):
-            source_id = file_source.name[file_source.name.find('\\') + 1:file_source.name.find(' ')]
+            titolo = file_source.name[file_source.name.find('\\') + 1:file_source.name.rfind('.')].strip()
             cas = cassis.load_cas_from_xmi(file_source, typesystem)
             lemma = None
             for annotation in cas.select_all():
@@ -55,9 +56,15 @@ def main(source_dir, output_filename):
                     article = annotation_text[split + 1:].strip()
                     while len(article)>0 and article[-1] in (',','.',';'):
                         article = article[:-1].strip()
-                    index[book][article].append((source_id, lemma))
+                    index[book][article].append((titolo, capitolo, lemma))
                 elif annotation.Tipo == 'Lemma glossato':
                     lemma = annotation.get_covered_text()
+                elif annotation.Tipo == 'Capitolo':
+                    capitolo = annotation.get_covered_text()
+                elif annotation.Tipo == 'Titolo':
+                    ann_titolo = annotation.get_covered_text()
+                    if ann_titolo!=titolo:
+                        raise ValueError(f'Mismatched annotation in {file_source}: {annotation}')
                 else:
                     raise ValueError(f'Unknown annotation in {file_source}: {annotation}')
 
@@ -67,8 +74,8 @@ def main(source_dir, output_filename):
     with open(output_filename, mode='wt', encoding='utf-8') as output_file:
         for book in sorted(index):
             for article in sorted(index[book]):
-                for source_id, lemma in sorted(index[book][article], key=lambda x: x[0]):
-                    print(book, article, source_id, lemma, sep='\t|\t', file=output_file)
+                for titolo, capitolo, lemma in sorted(index[book][article], key=lambda x: x[1]):
+                    print(book, article, titolo, capitolo, lemma, sep='\t', file=output_file)
 
 
 if __name__ == '__main__':

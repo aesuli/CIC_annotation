@@ -40,8 +40,8 @@ def main(source_dir, target_dir, mark_source=False):
               file_text.open(mode='rt', encoding='utf-8') as text_file):
             cas = cassis.Cas(typesystem)
             text = text_file.read()
-            text = text.replace('\n','\r\n')
-            cas.sofa_string =text
+            text = text.replace('\n', '\r\n')
+            cas.sofa_string = text
             cas.sofa_mime = 'text'
             last_label = 'O'
             last_end = -1
@@ -51,17 +51,25 @@ def main(source_dir, target_dir, mark_source=False):
                 line = line.strip()
                 if len(line) > 0:
                     token, start, end, label = line.split(' ')
-                    if annotation_type is not None and not label.endswith(annotation_type) and last_label.endswith(annotation_type):
-                        if annotation_type=='AN':
+                    if annotation_type is not None and not label.endswith(annotation_type) and last_label.endswith(
+                            annotation_type):
+                        if annotation_type == 'AN':
                             if mark_source:
                                 source = last_label.split('|')[0]
-                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                          Tipo=f'Allegazione normativa|{source}')
                             else:
                                 glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
                                                           Tipo='Allegazione normativa')
-                        elif annotation_type=='LEMMA':
+                        elif annotation_type == 'LEMMA':
                             glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
                                                       Tipo='Lemma glossato')
+                        elif annotation_type == 'CHAPTER':
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Capitolo')
+                        elif annotation_type == 'TITLE':
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Titolo')
                         else:
                             raise ValueError(f'Unknown annotation type {annotation_type}')
                         cas.add(glossa)
@@ -73,25 +81,39 @@ def main(source_dir, target_dir, mark_source=False):
                     elif label.endswith('LEMMA') and last_label == 'O':
                         annotation_start = start
                         annotation_type = 'LEMMA'
+                    elif label.endswith('CHAPTER') and last_label == 'O':
+                        annotation_start = start
+                        annotation_type = 'CHAPTER'
+                    elif label.endswith('TITLE') and last_label == 'O':
+                        annotation_start = start
+                        annotation_type = 'TITLE'
 
                     last_end = end
 
-                    if label.endswith('AN') or label.endswith('LEMMA'):
+                    if label.endswith('AN') or label.endswith('LEMMA') or label.endswith('CHAPTER') or label.endswith(
+                            'TITLE'):
                         last_label = label
                     else:
                         last_label = 'O'
                 else:
                     if annotation_type is not None and last_label.endswith(annotation_type):
-                        if annotation_type=='AN':
+                        if annotation_type == 'AN':
                             if mark_source:
                                 source = last_label.split('|')[0]
-                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end), Tipo=f'Allegazione normativa|{source}')
+                                glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                          Tipo=f'Allegazione normativa|{source}')
                             else:
                                 glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
                                                           Tipo='Allegazione normativa')
-                        elif annotation_type=='LEMMA':
+                        elif annotation_type == 'LEMMA':
                             glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
                                                       Tipo='Lemma glossato')
+                        elif annotation_type == 'CHAPTER':
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Capitolo')
+                        elif annotation_type == 'TITLE':
+                            glossa = GlossaAnnotation(begin=int(annotation_start), end=int(last_end),
+                                                      Tipo='Titolo')
                         else:
                             raise ValueError(f'Unknown annotation type {annotation_type}')
                         cas.add(glossa)

@@ -1,3 +1,5 @@
 dkpro-cassis
 scikit-learn
 sklearn-crfsuite
+python-docx
+
